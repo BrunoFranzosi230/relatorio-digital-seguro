@@ -1,7 +1,7 @@
 // frontend/src/app/verifySignature/page.tsx
-'use client'; // Necessário para Web Cryptography API e interatividade
+'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react'; // Importe Suspense
 import { useRouter, useSearchParams } from 'next/navigation';
 
 interface SignedReportDetails {
@@ -15,7 +15,8 @@ interface SignedReportDetails {
   // Adicione outros campos necessários
 }
 
-export default function VerifySignaturePage() {
+// Componente Wrapper para usar useSearchParams
+function VerifySignatureContent() { // Renomeado o componente principal
   const router = useRouter();
   const searchParams = useSearchParams();
   const reportId = searchParams.get('id');
@@ -29,36 +30,28 @@ export default function VerifySignaturePage() {
       return;
     }
 
-    // TODO: Chamar API do backend para buscar detalhes do relatório assinado (incluindo assinatura e chave pública)
     const fetchSignedReport = async () => {
       try {
-        // Ex: const response = await fetch(`/api/expenses/${reportId}/signed`);
-        // const data = await response.json();
-        // setReport(data);
-        // Dados mock para exemplo (SIMULE que você busca a assinatura e a chave pública do backend):
         setReport({
           id: reportId,
           description: `Relatório Assinado (ID: ${reportId})`,
           amount: 450.00,
           signedBy: 'Diretor Exemplo',
-          // Simule uma assinatura e uma chave pública. Em um caso real, o backend as forneceria.
-          // Para testar a verificação, você precisará de uma assinatura e chave pública que correspondam.
-          // O ideal é assinar no 'signExpense' e enviar para o backend, que as armazenará.
-          signature: 'MOCK_BASE64_SIGNATURE_HERE', // Substitua por uma assinatura real
-          publicKeyJwk: { // Substitua por uma JWK pública real que corresponda à assinatura
+          signature: 'MOCK_BASE64_SIGNATURE_HERE',
+          publicKeyJwk: {
             kty: "RSA",
             alg: "RSASSA-PKCS1-v1_5",
-            n: "MOCK_N_VALUE_HERE", // Longa string base64url-encoded
+            n: "MOCK_N_VALUE_HERE",
             e: "AQAB",
             ext: true,
             key_ops: ["verify"],
-            // Outros campos da JWK pública, se houver
           },
           receiptUrl: '/placeholder-receipt.png',
         });
       } catch (error) {
         console.error('Erro ao buscar relatório assinado para verificação:', error);
-        setReport(null);
+        setReport(null); // Garante que setReport é usado no erro
+        setVerificationStatus('Erro ao carregar detalhes do relatório.'); // Garante que setVerificationStatus é usado
       } finally {
         setLoading(false);
       }
@@ -73,7 +66,6 @@ export default function VerifySignaturePage() {
     }
 
     try {
-      // 1. Importar a chave pública
       const publicKey = await window.crypto.subtle.importKey(
         "jwk",
         report.publicKeyJwk,
@@ -81,24 +73,21 @@ export default function VerifySignaturePage() {
           name: "RSASSA-PKCS1-v1_5",
           hash: "SHA-256",
         },
-        true, // exportable (pode ser false se não for exportar)
+        true,
         ["verify"]
       );
 
-      // 2. Preparar os dados originais que foram assinados (devem ser EXATAMENTE os mesmos)
       const dataToVerify = JSON.stringify({
         id: report.id,
         description: report.description,
         amount: report.amount,
-        signedBy: report.signedBy, // Use o campo que foi assinado
+        signedBy: report.signedBy,
       });
       const encoder = new TextEncoder();
       const encodedData = encoder.encode(dataToVerify);
 
-      // 3. Decodificar a assinatura (de Base64 para ArrayBuffer)
       const signatureBuffer = Uint8Array.from(atob(report.signature), c => c.charCodeAt(0));
 
-      // 4. Verificar a assinatura
       const isValid = await window.crypto.subtle.verify(
         { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
         publicKey,
@@ -111,7 +100,7 @@ export default function VerifySignaturePage() {
 
     } catch (error) {
       console.error('Erro ao verificar assinatura:', error);
-      setVerificationStatus('Erro durante a verificação.');
+      setVerificationStatus('Erro durante a verificação.'); // Garante que setVerificationStatus é usado
       alert('Ocorreu um erro ao verificar a assinatura. Verifique o console.');
     }
   };
@@ -141,9 +130,8 @@ export default function VerifySignaturePage() {
         <p className="mb-2"><span className="font-semibold">Descrição:</span> {report.description}</p>
         <p className="mb-2"><span className="font-semibold">Valor:</span> R$ {report.amount.toFixed(2)}</p>
         <p className="mb-4"><span className="font-semibold">Assinado Por:</span> {report.signedBy}</p>
-        <p className="mb-4"><span className="font-semibold">Assinatura (Base64):</span> <span className="break-all text-sm">{report.signature.substring(0, 50)}...</span></p> {/* Exibe apenas um trecho */}
+        <p className="mb-4"><span className="font-semibold">Assinatura (Base64):</span> <span className="break-all text-sm">{report.signature.substring(0, 50)}...</span></p>
         <p className="mb-4"><span className="font-semibold">Chave Pública (JWK):</span> <span className="break-all text-sm">{JSON.stringify(report.publicKeyJwk).substring(0, 50)}...</span></p>
-
 
         {report.receiptUrl && (
           <div className="mb-6">
@@ -170,5 +158,17 @@ export default function VerifySignaturePage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function VerifySignaturePage() { // Renomeada a função de exportação
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white">
+        <p>Carregando página de verificação...</p>
+      </div>
+    }>
+      <VerifySignatureContent />
+    </Suspense>
   );
 }

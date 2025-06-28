@@ -1,8 +1,8 @@
 // frontend/src/app/validateExpense/page.tsx
-'use client'; // Terá interatividade para aprovação/rejeição
+'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation'; // Para pegar o ID da URL
+import React, { useState, useEffect, Suspense } from 'react'; // Importe Suspense
+import { useSearchParams, useRouter } from 'next/navigation';
 
 interface ExpenseReportDetails {
   id: string;
@@ -10,11 +10,12 @@ interface ExpenseReportDetails {
   amount: number;
   status: string;
   submittedBy: string;
-  receiptUrl: string; // URL do recibo para visualização
+  receiptUrl: string;
   // Adicione outros campos
 }
 
-export default function ValidateExpensePage() {
+// Componente Wrapper para usar useSearchParams
+function ValidateExpenseContent() { // Renomeado o componente principal
   const searchParams = useSearchParams();
   const router = useRouter();
   const reportId = searchParams.get('id'); // Pega o ID do relatório da URL
@@ -24,29 +25,23 @@ export default function ValidateExpensePage() {
 
   useEffect(() => {
     if (!reportId) {
-      // Se não houver ID, redireciona ou mostra erro
       router.push('/pendingExpenses');
       return;
     }
 
-    // TODO: Chamar API do backend para buscar detalhes do relatório pelo ID
     const fetchReportDetails = async () => {
       try {
-        // Ex: const response = await fetch(`/api/expenses/${reportId}`);
-        // const data = await response.json();
-        // setReport(data);
-        // Dados mock para exemplo:
         setReport({
           id: reportId,
           description: `Relatório de Exemplo para ID: ${reportId}`,
           amount: 250.00,
           status: 'pendente',
           submittedBy: 'Colaborador Teste',
-          receiptUrl: '/placeholder-receipt.png', // Substitua por uma URL real do seu backend/storage
+          receiptUrl: '/placeholder-receipt.png',
         });
       } catch (error) {
         console.error('Erro ao buscar detalhes do relatório:', error);
-        setReport(null);
+        setReport(null); // Garante que setReport é usado no erro
       } finally {
         setLoading(false);
       }
@@ -58,15 +53,9 @@ export default function ValidateExpensePage() {
     if (!report) return;
 
     console.log(`Validando relatório ${report.id} como: ${status} com comentário: "${comment}"`);
-    // TODO: Chamar API do backend para atualizar o status do relatório
     try {
-      // Ex: await fetch(`/api/expenses/${report.id}/validate`, {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ status, comment }),
-      // });
       alert(`Relatório ${report.id} ${status} com sucesso!`);
-      router.push('/pendingExpenses'); // Redireciona de volta para a lista de pendentes
+      router.push('/pendingExpenses');
     } catch (error) {
       console.error(`Erro ao ${status} relatório:`, error);
       alert(`Falha ao ${status} relatório.`);
@@ -103,8 +92,6 @@ export default function ValidateExpensePage() {
           <div className="mb-6">
             <h2 className="text-xl font-semibold mb-2">Recibo:</h2>
             <img src={report.receiptUrl} alt="Recibo" className="max-w-full h-auto border rounded-lg shadow-sm" />
-            {/* Ou um link para PDF se for o caso */}
-            {/* <a href={report.receiptUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">Ver Recibo (PDF)</a> */}
           </div>
         )}
 
@@ -137,5 +124,18 @@ export default function ValidateExpensePage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// Exporta a página principal, envolvendo o conteúdo em Suspense
+export default function ValidateExpensePage() { // Renomeada a função de exportação
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white">
+        <p>Carregando página de validação...</p>
+      </div>
+    }>
+      <ValidateExpenseContent />
+    </Suspense>
   );
 }

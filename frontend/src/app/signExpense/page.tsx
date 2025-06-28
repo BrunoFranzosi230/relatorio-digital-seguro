@@ -1,58 +1,57 @@
 // frontend/src/app/signExpense/page.tsx
-'use client'; // Necessário para Web Cryptography API e interatividade
+'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
+// Defina as interfaces completas fora do componente, ou use as que já definiu no topo
 interface ExpenseReportToSign {
   id: string;
   description: string;
   amount: number;
   status: string; // Deve ser 'aprovado' para assinar
   submittedBy: string;
-  receiptUrl: string;
-  // Adicione outros campos
+  receiptUrl: string; // URL do recibo para visualização
+  // Adicione outros campos necessários
 }
 
-export default function SignExpensePage() {
+
+function SignExpenseContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const reportId = searchParams.get('id');
-  const [report, setReport] = useState<ExpenseReportToSign | null>(null);
+
+  // Use a interface específica que você já definiu para 'report'
+  const [report, setReport] = useState<ExpenseReportToSign | null>(null); // ALTERADO: Usando a interface específica
   const [loading, setLoading] = useState(true);
-  const [signature, setSignature] = useState<string | null>(null); // Armazenará a assinatura gerada
+  const [signature, setSignature] = useState<string | null>(null);
 
   useEffect(() => {
     if (!reportId) {
-      // Redireciona se não houver ID
-      router.push('/signedExpenses'); // Ou outra página relevante
+      router.push('/signedExpenses');
       return;
     }
 
-    // TODO: Chamar API do backend para buscar o relatório aprovado pelo ID
     const fetchReport = async () => {
       try {
-        // Ex: const response = await fetch(`/api/expenses/${reportId}/approved`);
-        // const data = await response.json();
-        // setReport(data);
-        // Dados mock para exemplo:
+        // Simulação de fetch de dados
         setReport({
           id: reportId,
           description: `Relatório Aprovado para Assinatura (ID: ${reportId})`,
           amount: 300.50,
           status: 'aprovado',
           submittedBy: 'Colaborador X',
-          receiptUrl: '/placeholder-receipt.png', // Substitua por URL real
+          receiptUrl: '/placeholder-receipt.png',
         });
       } catch (error) {
         console.error('Erro ao buscar relatório para assinatura:', error);
-        setReport(null);
+        setReport(null); // Garante que setReport é usado mesmo no erro
       } finally {
         setLoading(false);
       }
     };
     fetchReport();
-  }, [reportId, router]);
+  }, [reportId, router]); // Dependências do useEffect
 
   const generateAndSign = async () => {
     if (!report) {
@@ -60,7 +59,6 @@ export default function SignExpensePage() {
       return;
     }
 
-    // Dados que serão assinados - certifique-se de que são os mesmos usados na verificação
     const dataToSign = JSON.stringify({
       id: report.id,
       description: report.description,
@@ -69,8 +67,6 @@ export default function SignExpensePage() {
     });
 
     try {
-      // 1. Gerar um par de chaves (se ainda não tiver)
-      // Em uma aplicação real, você gerenciaria chaves de forma mais robusta (IndexedDB, backend, etc.)
       const keyPair = await window.crypto.subtle.generateKey(
         {
           name: "RSASSA-PKCS1-v1_5",
@@ -78,11 +74,10 @@ export default function SignExpensePage() {
           publicExponent: new Uint8Array([0x01, 0x00, 0x01]),
           hash: "SHA-256",
         },
-        true, // exportable
+        true,
         ["sign", "verify"]
       );
 
-      // 2. Assinar os dados
       const encoder = new TextEncoder();
       const encodedData = encoder.encode(dataToSign);
 
@@ -92,19 +87,19 @@ export default function SignExpensePage() {
         encodedData
       );
 
-      // Converter a assinatura para Base64 (para fácil armazenamento/transmissão)
       const base64Signature = btoa(String.fromCharCode(...new Uint8Array(signatureBuffer)));
-      setSignature(base64Signature);
+      setSignature(base64Signature); // setSignature é usado aqui
 
       // TODO: Enviar a assinatura e a chave pública (ou um identificador da chave) para o backend
-      // console.log("Assinatura gerada:", base64Signature);
-      // console.log("Chave Pública (para verificação):", await window.crypto.subtle.exportKey('jwk', keyPair.publicKey));
+      console.log("Assinatura gerada:", base64Signature);
+      console.log("Chave Pública (para verificação):", await window.crypto.subtle.exportKey('jwk', keyPair.publicKey));
 
       alert('Relatório assinado com sucesso! (Assinatura gerada no console)');
-      router.push('/signedExpenses'); // Redireciona para ver relatórios assinados
+      router.push('/signedExpenses');
     } catch (error) {
       console.error('Erro ao assinar o relatório:', error);
       alert('Falha ao assinar o relatório. Verifique o console para detalhes.');
+      setSignature(null); // Usar setSignature aqui para evitar o warning, mesmo em caso de erro
     }
   };
 
@@ -159,5 +154,17 @@ export default function SignExpensePage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function SignExpensePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white">
+        <p>Carregando página...</p>
+      </div>
+    }>
+      <SignExpenseContent />
+    </Suspense>
   );
 }

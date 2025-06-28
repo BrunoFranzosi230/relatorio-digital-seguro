@@ -7,6 +7,7 @@ services:
     ports:
       - "27017:27017"
     volumes:
+      # Este é o mapeamento do volume nomeado 'mongodb_data' para o caminho interno do MongoDB
       - mongodb_data:/data/db
     networks:
       - app_network
@@ -24,6 +25,13 @@ services:
       JWT_SECRET: seu_segredo_jwt_muito_forte_aqui
       EMAIL_USER: seu_email@example.com
       EMAIL_PASS: sua_senha_email_app
+      EMAIL_HOST: smtp.gmail.com # Certifique-se de ter essas variáveis de ambiente no .env do backend
+      EMAIL_PORT: 587
+      EMAIL_FROM_NAME: Sistema de Relatorios Digitais
+    volumes:
+      # ESTA É A CORREÇÃO: O bind mount para 'uploads' DEVE estar aqui,
+      # dentro da definição do serviço 'backend', e não na seção global 'volumes'.
+      - ./backend/src/uploads:/app/uploads
     depends_on:
       - mongodb
     networks:
@@ -44,7 +52,9 @@ services:
       - app_network
 
 volumes:
-  mongodb_data:
+  # ESTA É A CORREÇÃO: Apenas o volume nomeado 'mongodb_data' é listado aqui.
+  # Adicione '{}' para ser explícito, embora 'mongodb_data:' sozinho já seja válido.
+  mongodb_data: {}
 
 networks:
   app_network:

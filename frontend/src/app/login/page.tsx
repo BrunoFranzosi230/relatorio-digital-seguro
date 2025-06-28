@@ -1,17 +1,35 @@
-'use client'; // Esta página terá interatividade de formulário
+// frontend/src/app/login/page.tsx
+'use client';
 
 import React, { useState } from 'react';
-// import { Button, TextField, Typography } from '@mui/material'; // Exemplo de import do Material-UI
+import { useRouter } from 'next/navigation';
+import { login } from '@/lib/api';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Tentativa de login com:', { email, password });
-    // TODO: Lógica para chamar a API de login do backend
-    // Ex: const response = await fetch('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
+    setLoading(true);
+    setError(null);
+
+    try {
+      const data = await login(email, password);
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify({ name: data.name, role: data.role, email: data.email }));
+
+      router.push('/dashboard');
+    } catch (err: unknown) { // CHANGED: Use 'unknown' type for caught errors, then narrow it
+      console.error('Erro no login:', err);
+      // Safely check if 'err' is an Error instance and access its message
+      setError(err instanceof Error ? err.message : 'Ocorreu um erro desconhecido.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -30,8 +48,8 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              disabled={loading}
             />
-            {/* Exemplo Material-UI: <TextField label="Email" variant="outlined" fullWidth value={email} onChange={(e) => setEmail(e.target.value)} /> */}
           </div>
           <div className="mb-6">
             <label htmlFor="password" className="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2">
@@ -44,16 +62,17 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              disabled={loading}
             />
-            {/* Exemplo Material-UI: <TextField label="Senha" type="password" variant="outlined" fullWidth value={password} onChange={(e) => setPassword(e.target.value)} /> */}
           </div>
+          {error && <p className="text-red-500 text-xs italic mb-4 text-center">{error}</p>}
           <button
             type="submit"
-            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline w-full"
+            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline w-full disabled:opacity-50"
+            disabled={loading}
           >
-            Entrar
+            {loading ? 'A Entrar...' : 'Entrar'}
           </button>
-          {/* Exemplo Material-UI: <Button type="submit" variant="contained" color="primary" fullWidth>Entrar</Button> */}
         </form>
       </div>
     </div>
